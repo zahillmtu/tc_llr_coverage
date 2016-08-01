@@ -11,6 +11,7 @@ from Tkinter import Tk
 from tkFileDialog import askdirectory
 
 RES_FILE = './coverage_results.log'
+MODIFIED_TC_FILE = './modified_tc_file.csv'
 
 def find_require_ln(fileName):
     """Method to find the line number of the location of 'REQUIREMENTS'
@@ -39,7 +40,6 @@ def find_requirements(fileName, fullFileName, cases_covered):
         data = f.read().splitlines(True)
 
     # Find all requirements
-    print('\t%s' % fileName)
     requires = []
     k = 0
     checked_second = False
@@ -47,7 +47,6 @@ def find_requirements(fileName, fullFileName, cases_covered):
         # Search all lines under 'REQUIREMENTS' section until out of requirements
         m1 = re.search('IMMC_LLR_[0-9]+', str(data[require_ln + k]))
         if m1:
-            print('\t\t%s' % m1.group(0))
             requires.append(m1.group(0))
             k = k + 1
         else:
@@ -55,7 +54,6 @@ def find_requirements(fileName, fullFileName, cases_covered):
             # if counter is still zero then there are no requirements
             # check another line down because some may have empty line first
             if k == 1 and checked_second:
-                print('\t\tNo or improper requirements')
                 break
             elif k == 0 and not checked_second:
                 k = k + 1
@@ -64,6 +62,19 @@ def find_requirements(fileName, fullFileName, cases_covered):
             break
 
     cases_covered.extend(requires)
+
+def gather_modified(modified):
+    """Method to retrieve the modified requirements from
+    a .csv file
+    """
+
+    # Read in data
+    with open(MODIFIED_TC_FILE, 'r') as f:
+        data = f.read().splitlines(True)
+
+    modified.extend(data)
+    return
+
 
 def main():
     """ Script to list all the LLRs under the 'REQUIREMENTS'
@@ -87,14 +98,36 @@ def main():
         fileList = [f for f in fileList if not f[0] == '.']
         subdirList[:] = [d for d in subdirList if not d[0] == '.']
 
-        print('')
-        print('Found directory: %s' % dirName)
         for file in fileList:
             if file.endswith('.txt') and file.startswith('TC'):
                 find_requirements(file, os.path.join(dirName, file), cases_covered)
 
-    for req in cases_covered:
-        print(req)
+    # get modified data
+    gather_modified(modified)
+
+    not_found = 0
+    print('')
+    print('The following cases are not covered in the Test Case documents:')
+    # Find any requirements in modified that are not in cases_covered
+    for case in modified:
+        found = False
+        for tc in cases_covered:
+            if (str(case).strip().rstrip()) == (str(tc).strip().rstrip()):
+                found = True
+                break
+        if not found:
+            print('\t%s' % str(case).strip().rstrip())
+            not_found += 1
+            continue
+
+    num_modified = len(modified)
+    print('')
+    print('Number of Test cases not found: %d' % not_found)
+    print('Number of Test cases modified: %d' % len(modified))
+    if num_modified != 0:
+        print('Percent missing: %.2f%%' % ((not_found * 1.0) / num_modified * 100.0))
+    else:
+        print('percent missing: 0%%')
 
 if __name__ == '__main__':
     main()
